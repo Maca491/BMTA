@@ -16,18 +16,22 @@ import com.example.puzzleapp.ui.theme.PuzzleAppTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             PuzzleAppTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    GameBoard(
-                        gridSize = 10,
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    content = { innerPadding ->
+                        // Zde předáme gridSize a inicializujeme stav
+                        GameWithShapes(
+                            gridSize = 10, // Velikost mřížky
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    }
+                )
             }
         }
     }
 }
+
 
 
