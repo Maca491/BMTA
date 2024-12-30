@@ -16,8 +16,10 @@ val OShape = Shapes(
 )
 
 val TShape = Shapes(
-    pattern = listOf(0 to 0, 1 to -1, 1 to 0, 1 to 1)
+    pattern = listOf(-1 to 0, 0 to 0, 1 to 0, 0 to 1)
 )
+
+
 
 val ZShape = Shapes(
     pattern = listOf(0 to 0, 0 to 1, 1 to 1, 1 to 2)
