@@ -14,13 +14,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.runtime.MutableState
+import androidx.compose.foundation.border
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.getValue
 
 @Composable
 fun GameBoard(gridSize: Int, modifier: Modifier = Modifier) {
-    // Ukládáme stav mřížky pomocí `remember` a `mutableStateOf`.
     val cells = remember { Array(gridSize) { Array(gridSize) { mutableStateOf(false) } } }
 
-    // LazyVerticalGrid pro vykreslení mřížky
     LazyVerticalGrid(
         columns = GridCells.Fixed(gridSize),
         modifier = modifier.fillMaxSize()
@@ -29,18 +30,60 @@ fun GameBoard(gridSize: Int, modifier: Modifier = Modifier) {
             val row = index / gridSize
             val col = index % gridSize
 
+            val color by animateColorAsState(
+                targetValue = if (cells[row][col].value) Color.Green else Color.Gray
+            )
+
             Box(
                 modifier = Modifier
-                    .aspectRatio(1f) // Čtvercová buňka
-                    .background(if (cells[row][col].value) Color.Green else Color.Gray)
+                    .aspectRatio(1f)
+                    .border(1.dp, Color.Black)
+                    .background(color)
                     .clickable {
-                        // Přepnutí stavu buňky
                         cells[row][col].value = !cells[row][col].value
+                        checkAndClearLines(cells) // Kontrola a vyčištění
                     }
             )
         }
     }
 }
+
+
+
+fun checkAndClearLines(cells: Array<Array<MutableState<Boolean>>>) {
+    val gridSize = cells.size
+    val rowsToClear = mutableSetOf<Int>()
+    val colsToClear = mutableSetOf<Int>()
+
+    // Zaznamenej řádky k vyčištění
+    for (row in 0 until gridSize) {
+        if (cells[row].all { it.value }) {
+            rowsToClear.add(row)
+        }
+    }
+
+    // Zaznamenej sloupce k vyčištění
+    for (col in 0 until gridSize) {
+        if ((0 until gridSize).all { row -> cells[row][col].value }) {
+            colsToClear.add(col)
+        }
+    }
+
+    // Vyčisti označené řádky
+    for (row in rowsToClear) {
+        for (col in 0 until gridSize) {
+            cells[row][col].value = false
+        }
+    }
+
+    // Vyčisti označené sloupce
+    for (col in colsToClear) {
+        for (row in 0 until gridSize) {
+            cells[row][col].value = false
+        }
+    }
+}
+
 
 fun canPlaceShape(board: Array<Array<MutableState<Boolean>>>, shape: Shapes, x: Int, y: Int): Boolean {
     return shape.pattern.all { (dx, dy) ->
