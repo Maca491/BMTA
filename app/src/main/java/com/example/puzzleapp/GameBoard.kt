@@ -25,6 +25,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntOffset
 
 @Composable
 fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
@@ -48,7 +50,7 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
             onDrop = { startX, startY ->
                 selectedShape?.let { shape ->
                     // Pokus o umístění tvaru
-                    if (placeShape(cells, shape, startX, startY)) {
+                    if (placeShape(cells, shape, startX, startY, score)) {
                         selectedShape = null // Reset výběru po položení
                     }
                 }
@@ -60,8 +62,17 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
         ShapeSelection(shapes = shapes, onShapeSelected = { shape ->
             selectedShape = shape // Nastavení vybraného tvaru
         })
+
+        // DraggableShape pro aktivní tvar, který se přetahuje
+        selectedShape?.let { shape ->
+            DraggableShape(shape = shape, onDrop = { startX, startY ->
+                selectedShape = null  // Resetování tvaru po umístění
+                placeShape(cells, shape, startX, startY, score)  // Umístění tvaru na mřížku
+            })
+        }
     }
 }
+
 
 
 @Composable
@@ -99,57 +110,41 @@ fun GameBoard(
     }
 }
 
-
-
-
 @Composable
 fun ShapeSelection(
     shapes: List<Shapes>,
     onShapeSelected: (Shapes) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceAround
-    ) {
+    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceAround) {
         shapes.forEach { shape ->
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .border(1.dp, Color.Black)
-                    .background(Color.LightGray)
-                    .clickable { onShapeSelected(shape) }
+                    .size(80.dp) // Velikost pro celý tvar
+                    .clickable { onShapeSelected(shape) } // Akce pro výběr tvaru
             ) {
-                ShapePreview(shape)
+                ShapePreview(shape) // Zavoláme ShapePreview bez rámečku
             }
         }
     }
 }
 
 
+
+
 @Composable
 fun ShapePreview(shape: Shapes) {
-    val gridSize = 4 // Mřížka pro zobrazení tvaru
-    Box(
-        modifier = Modifier
-            .size(80.dp)
-            .border(1.dp, Color.Black)
-    ) {
+    val size = 20.dp // Velikost jednotlivého čtverce
+
+        // Projdeme všechny souřadnice tvaru
         shape.pattern.forEach { (dx, dy) ->
             Box(
                 modifier = Modifier
-                    .absoluteOffset(
-                        x = (dx * 20).dp,
-                        y = (dy * 20).dp
-                    )
-                    .size(20.dp)
-                    .background(Color.Green)
+                    .offset(x = (dx * 20).dp, y = (dy * 20).dp) // Použití Dp přímo
+                    .size(size) // Nastavení velikosti každého čtverce
+                    .background(Color.Green) // Barva čtverce
             )
         }
     }
-}
-
 
 
 
@@ -158,21 +153,24 @@ fun DraggableShape(
     shape: Shapes,
     onDrop: (Int, Int) -> Unit
 ) {
-    // Implementace přetahování
+    var offset by remember { mutableStateOf(Offset(0f, 0f)) }
+
     Box(
         modifier = Modifier
+            .offset { IntOffset(offset.x.toInt(), offset.y.toInt()) }  // Posun tvaru při přetahování
             .size(80.dp)
             .draggable(
-                orientation = Orientation.Horizontal,
+                orientation = Orientation.Horizontal,  // Lze přetahovat horizontálně i vertikálně
                 state = rememberDraggableState { delta ->
-                    // Tady bychom mohli řešit změny polohy během přetahování
+                    offset = Offset(offset.x + delta, offset.y)
                 }
             )
     ) {
         // Zobrazení tvaru jako miniatura
-        Text("Tvar", color = Color.Black, modifier = Modifier.align(Alignment.Center))
+        ShapePreview(shape = shape)
     }
 }
+
 
 
 fun checkAndClearLines(cells: Array<Array<MutableState<Boolean>>>, score: MutableState<Int>) {
@@ -210,15 +208,21 @@ fun checkAndClearLines(cells: Array<Array<MutableState<Boolean>>>, score: Mutabl
     }
 }
 
-fun placeShape(cells: Array<Array<MutableState<Boolean>>>, shape: Shapes, startX: Int, startY: Int): Boolean {
+fun placeShape(cells: Array<Array<MutableState<Boolean>>>, shape: Shapes, startX: Int, startY: Int, score: MutableState<Int>): Boolean {
     if (canPlaceShape(cells, shape, startX, startY)) {
+        // Umístění tvaru do mřížky
         shape.pattern.forEach { (dx, dy) ->
             cells[startX + dx][startY + dy].value = true
         }
+
+        // Zavolání funkce pro kontrolu a vyčištění řádků a sloupců
+        checkAndClearLines(cells, score)
+
         return true
     }
     return false
 }
+
 
 
 fun canPlaceShape(board: Array<Array<MutableState<Boolean>>>, shape: Shapes, x: Int, y: Int): Boolean {
