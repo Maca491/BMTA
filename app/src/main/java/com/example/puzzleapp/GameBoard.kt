@@ -17,6 +17,8 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.foundation.border
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.runtime.getValue
@@ -26,14 +28,25 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 
 @Composable
 fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
     val cells = remember { Array(gridSize) { Array(gridSize) { mutableStateOf(false) } } }
     val score = remember { mutableStateOf(0) }
-    val shapes = remember { mutableStateListOf(IShape, OShape, TShape) }
+
+    // Všechny dostupné tvary
+    val allShapes = listOf(IShape, OShape, TShape, BigShape, I_Shape, SShape, ZShape, LShape)
+
+    // Aktuálně vybrané tvary
+    val availableShapes = remember { mutableStateListOf<Shapes>() }
     var selectedShape by remember { mutableStateOf<Shapes?>(null) }
+
+    // Pokud seznam aktuálně vybraných tvarů je prázdný, vybereme náhodně nové 3
+    if (availableShapes.isEmpty()) {
+        availableShapes.addAll(allShapes.shuffled().take(3)) // Vybereme náhodně 3 tvary
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         // Skóre
@@ -52,6 +65,7 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
                     // Pokus o umístění tvaru
                     if (placeShape(cells, shape, startX, startY, score)) {
                         selectedShape = null // Reset výběru po položení
+                        availableShapes.remove(shape) // Odebereme použitý tvar
                     }
                 }
             },
@@ -59,21 +73,32 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
         )
 
         // Nabídka tvarů
-        ShapeSelection(shapes = shapes, onShapeSelected = { shape ->
+        ShapeSelection(shapes = availableShapes, onShapeSelected = { shape ->
             selectedShape = shape // Nastavení vybraného tvaru
         })
 
         // DraggableShape pro aktivní tvar, který se přetahuje
         selectedShape?.let { shape ->
-            DraggableShape(shape = shape, onDrop = { startX, startY ->
-                selectedShape = null  // Resetování tvaru po umístění
-                placeShape(cells, shape, startX, startY, score)  // Umístění tvaru na mřížku
-            })
+            DraggableShape(
+                shape = shape,
+                onDrop = { startX, startY ->
+                    if (placeShape(cells, shape, startX, startY, score)) {
+                        selectedShape = null // Reset vybraného tvaru po vložení
+                        availableShapes.remove(shape) // Odebereme tvar z nabídky
+                        true // Signalizujeme úspěšné vložení
+                    } else {
+                        false // Signalizujeme neúspěch
+                    }
+                },
+                onCancel = {
+                    selectedShape = null // Reset vybraného tvaru, pokud se nevloží
+                }
+            )
         }
+
+
     }
 }
-
-
 
 @Composable
 fun GameBoard(
@@ -115,59 +140,79 @@ fun ShapeSelection(
     shapes: List<Shapes>,
     onShapeSelected: (Shapes) -> Unit
 ) {
-    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceAround) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceAround
+    ) {
         shapes.forEach { shape ->
             Box(
                 modifier = Modifier
-                    .size(80.dp) // Velikost pro celý tvar
-                    .clickable { onShapeSelected(shape) } // Akce pro výběr tvaru
+                    .size(80.dp)
+                    .clickable {
+                        onShapeSelected(shape) // Aktivace tvaru pro přetahování
+                    }
             ) {
-                ShapePreview(shape) // Zavoláme ShapePreview bez rámečku
+                ShapePreview(shape)
             }
         }
     }
 }
 
 
-
-
 @Composable
 fun ShapePreview(shape: Shapes) {
     val size = 20.dp // Velikost jednotlivého čtverce
 
-        // Projdeme všechny souřadnice tvaru
-        shape.pattern.forEach { (dx, dy) ->
-            Box(
-                modifier = Modifier
-                    .offset(x = (dx * 20).dp, y = (dy * 20).dp) // Použití Dp přímo
-                    .size(size) // Nastavení velikosti každého čtverce
-                    .background(Color.Green) // Barva čtverce
-            )
-        }
+    // Projdeme všechny souřadnice tvaru
+    shape.pattern.forEach { (dx, dy) ->
+        Box(
+            modifier = Modifier
+                .offset(x = (dy * 20).dp, y = (dx * 20).dp) // Oprava zaměněných os
+                .size(size) // Nastavení velikosti každého čtverce
+                .background(Color.Green) // Barva čtverce
+        )
     }
-
-
+}
 
 @Composable
 fun DraggableShape(
     shape: Shapes,
-    onDrop: (Int, Int) -> Unit
+    onDrop: (Int, Int) -> Boolean, // Vrací true, pokud se tvar vloží
+    onCancel: () -> Unit // Vrací tvar zpět do výběru
 ) {
-    var offset by remember { mutableStateOf(Offset(0f, 0f)) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    val gridSize = 80.dp // Velikost čtverce mřížky
 
     Box(
         modifier = Modifier
-            .offset { IntOffset(offset.x.toInt(), offset.y.toInt()) }  // Posun tvaru při přetahování
-            .size(80.dp)
-            .draggable(
-                orientation = Orientation.Horizontal,  // Lze přetahovat horizontálně i vertikálně
-                state = rememberDraggableState { delta ->
-                    offset = Offset(offset.x + delta, offset.y)
-                }
-            )
+            .offset { IntOffset(offset.x.toInt(), offset.y.toInt()) }
+            .size(gridSize * 4) // Nastavíme dostatečnou velikost pro pohyb tvaru
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        change.consume() // Spotřebujeme gesto
+                        offset += Offset(dragAmount.x, dragAmount.y) // Aktualizujeme pozici
+                    },
+                    onDragEnd = {
+                        val gridX = (offset.x / gridSize.toPx()).toInt()
+                        val gridY = (offset.y / gridSize.toPx()).toInt()
+
+                        // Pokud je možné tvar vložit, vložíme ho, jinak reset
+                        if (!onDrop(gridX, gridY)) {
+                            offset = Offset.Zero // Reset pozice
+                            onCancel() // Vrátíme tvar do výběru
+                        }
+                    },
+                    onDragCancel = {
+                        offset = Offset.Zero // Reset pozice při zrušení
+                        onCancel() // Vrátíme tvar do výběru
+                    }
+                )
+            }
     ) {
-        // Zobrazení tvaru jako miniatura
-        ShapePreview(shape = shape)
+        ShapePreview(shape = shape) // Zobrazíme náhled tvaru
     }
 }
 
@@ -214,7 +259,7 @@ fun placeShape(cells: Array<Array<MutableState<Boolean>>>, shape: Shapes, startX
         shape.pattern.forEach { (dx, dy) ->
             cells[startX + dx][startY + dy].value = true
         }
-
+        score.value += shape.pattern.size
         // Zavolání funkce pro kontrolu a vyčištění řádků a sloupců
         checkAndClearLines(cells, score)
 
@@ -223,8 +268,6 @@ fun placeShape(cells: Array<Array<MutableState<Boolean>>>, shape: Shapes, startX
     return false
 }
 
-
-
 fun canPlaceShape(board: Array<Array<MutableState<Boolean>>>, shape: Shapes, x: Int, y: Int): Boolean {
     return shape.pattern.all { (dx, dy) ->
         val newX = x + dx
@@ -232,5 +275,3 @@ fun canPlaceShape(board: Array<Array<MutableState<Boolean>>>, shape: Shapes, x: 
         newX in board.indices && newY in board[newX].indices && !board[newX][newY].value
     }
 }
-
-
