@@ -29,23 +29,26 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 
 @Composable
 fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
     val cells = remember { Array(gridSize) { Array(gridSize) { mutableStateOf(false) } } }
     val score = remember { mutableStateOf(0) }
-
-    // Všechny dostupné tvary
     val allShapes = listOf(IShape, OShape, TShape, BigShape, I_Shape, SShape, ZShape, LShape)
-
-    // Aktuálně vybrané tvary
     val availableShapes = remember { mutableStateListOf<Shapes>() }
-    var selectedShape by remember { mutableStateOf<Shapes?>(null) }
+    var draggingShape by remember { mutableStateOf<Shapes?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var previewStart by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    // Pokud seznam aktuálně vybraných tvarů je prázdný, vybereme náhodně nové 3
+    // Získání hustoty obrazovky
+    val density = LocalDensity.current
+    val cellSizePx = with(density) { 80.dp.toPx() } // Převod dp na px
+
+    // Naplnění výběru tvarů, pokud je prázdný
     if (availableShapes.isEmpty()) {
-        availableShapes.addAll(allShapes.shuffled().take(3)) // Vybereme náhodně 3 tvary
+        availableShapes.addAll(allShapes.shuffled().take(3))
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -60,51 +63,74 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
         GameBoard(
             cells = cells,
             score = score,
+            previewStart = previewStart,
+            draggingShape = draggingShape,
             onDrop = { startX, startY ->
-                selectedShape?.let { shape ->
-                    // Pokus o umístění tvaru
+                draggingShape?.let { shape ->
                     if (placeShape(cells, shape, startX, startY, score)) {
-                        selectedShape = null // Reset výběru po položení
-                        availableShapes.remove(shape) // Odebereme použitý tvar
+                        draggingShape = null
+                        previewStart = null
+                        true // Signalizace úspěšného vložení
+                    } else {
+                        availableShapes.add(shape) // Vrátíme tvar do nabídky
+                        draggingShape = null
+                        previewStart = null
+                        false // Signalizace neúspěchu
                     }
-                }
+                } ?: false
             },
             Modifier.weight(1f)
         )
 
         // Nabídka tvarů
-        ShapeSelection(shapes = availableShapes, onShapeSelected = { shape ->
-            selectedShape = shape // Nastavení vybraného tvaru
-        })
+        ShapeSelection(
+            shapes = availableShapes,
+            onShapeSelected = { shape ->
+                draggingShape = shape
+                availableShapes.remove(shape) // Tvar zmizí z nabídky
+            }
+        )
 
-        // DraggableShape pro aktivní tvar, který se přetahuje
-        selectedShape?.let { shape ->
+        // Přetahování aktivního tvaru
+        draggingShape?.let { shape ->
             DraggableShape(
                 shape = shape,
-                onDrop = { startX, startY ->
-                    if (placeShape(cells, shape, startX, startY, score)) {
-                        selectedShape = null // Reset vybraného tvaru po vložení
-                        availableShapes.remove(shape) // Odebereme tvar z nabídky
-                        true // Signalizujeme úspěšné vložení
+                initialOffset = dragOffset,
+                onDrag = { offset ->
+                    dragOffset = offset // Aktualizace pozice během přetahování
+                    val gridX = (offset.x / cellSizePx).toInt()
+                    val gridY = (offset.y / cellSizePx).toInt()
+                    previewStart = if (canPlaceShape(cells, shape, gridX, gridY)) {
+                        gridX to gridY
                     } else {
-                        false // Signalizujeme neúspěch
+                        null
                     }
                 },
-                onCancel = {
-                    selectedShape = null // Reset vybraného tvaru, pokud se nevloží
+                onDrop = { startX, startY ->
+                    if (placeShape(cells, shape, startX, startY, score)) {
+                        draggingShape = null
+                        previewStart = null
+                    } else {
+                        availableShapes.add(shape) // Vrátíme tvar do nabídky
+                        draggingShape = null
+                        previewStart = null
+                        dragOffset = Offset.Zero
+                    }
                 }
             )
         }
-
-
     }
 }
+
+
 
 @Composable
 fun GameBoard(
     cells: Array<Array<MutableState<Boolean>>>,
     score: MutableState<Int>,
-    onDrop: (Int, Int) -> Unit, // Callback pro položení tvaru
+    previewStart: Pair<Int, Int>?,
+    draggingShape: Shapes?,
+    onDrop: (Int, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val gridSize = cells.size
@@ -116,9 +142,17 @@ fun GameBoard(
         items(gridSize * gridSize) { index ->
             val row = index / gridSize
             val col = index % gridSize
+            val isPreview =
+                draggingShape != null && previewStart != null && draggingShape.pattern.any { (dx, dy) ->
+                    previewStart.first + dx == row && previewStart.second + dy == col
+                }
 
             val color by animateColorAsState(
-                targetValue = if (cells[row][col].value) Color.Green else Color.Gray
+                targetValue = when {
+                    cells[row][col].value -> Color.Green
+                    isPreview -> Color.DarkGray
+                    else -> Color.Gray
+                }
             )
 
             Box(
@@ -126,14 +160,18 @@ fun GameBoard(
                     .aspectRatio(1f)
                     .border(1.dp, Color.Black)
                     .background(color)
-                    .clickable {
-                        // Po kliknutí zavoláme callback s pozicí
-                        onDrop(row, col)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = {
+                                onDrop(row, col)
+                            }
+                        )
                     }
             )
         }
     }
 }
+
 
 @Composable
 fun ShapeSelection(
@@ -151,7 +189,7 @@ fun ShapeSelection(
                 modifier = Modifier
                     .size(80.dp)
                     .clickable {
-                        onShapeSelected(shape) // Aktivace tvaru pro přetahování
+                        onShapeSelected(shape) // Předání tvaru do přetahování
                     }
             ) {
                 ShapePreview(shape)
@@ -159,6 +197,7 @@ fun ShapeSelection(
         }
     }
 }
+
 
 
 @Composable
@@ -179,42 +218,35 @@ fun ShapePreview(shape: Shapes) {
 @Composable
 fun DraggableShape(
     shape: Shapes,
-    onDrop: (Int, Int) -> Boolean, // Vrací true, pokud se tvar vloží
-    onCancel: () -> Unit // Vrací tvar zpět do výběru
+    initialOffset: Offset = Offset.Zero,
+    onDrag: (Offset) -> Unit,
+    onDrop: (Int, Int) -> Unit
 ) {
-    var offset by remember { mutableStateOf(Offset.Zero) }
-    val gridSize = 80.dp // Velikost čtverce mřížky
+    var offset by remember { mutableStateOf(initialOffset) }
 
     Box(
         modifier = Modifier
             .offset { IntOffset(offset.x.toInt(), offset.y.toInt()) }
-            .size(gridSize * 4) // Nastavíme dostatečnou velikost pro pohyb tvaru
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDrag = { change, dragAmount ->
-                        change.consume() // Spotřebujeme gesto
-                        offset += Offset(dragAmount.x, dragAmount.y) // Aktualizujeme pozici
+                        change.consume()
+                        offset += dragAmount
+                        onDrag(offset)
                     },
                     onDragEnd = {
-                        val gridX = (offset.x / gridSize.toPx()).toInt()
-                        val gridY = (offset.y / gridSize.toPx()).toInt()
-
-                        // Pokud je možné tvar vložit, vložíme ho, jinak reset
-                        if (!onDrop(gridX, gridY)) {
-                            offset = Offset.Zero // Reset pozice
-                            onCancel() // Vrátíme tvar do výběru
-                        }
-                    },
-                    onDragCancel = {
-                        offset = Offset.Zero // Reset pozice při zrušení
-                        onCancel() // Vrátíme tvar do výběru
+                        val gridX = (offset.x / 80.dp.toPx()).toInt()
+                        val gridY = (offset.y / 80.dp.toPx()).toInt()
+                        onDrop(gridX, gridY)
                     }
                 )
             }
     ) {
-        ShapePreview(shape = shape) // Zobrazíme náhled tvaru
+        ShapePreview(shape = shape)
     }
 }
+
+
 
 
 
