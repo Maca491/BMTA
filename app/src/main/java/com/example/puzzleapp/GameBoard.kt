@@ -39,27 +39,25 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
     val allShapes = listOf(IShape, OShape, TShape, BigShape, I_Shape, SShape, ZShape, LShape)
     val availableShapes = remember { mutableStateListOf<Shapes>() }
     var draggingShape by remember { mutableStateOf<Shapes?>(null) }
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) } // Přidáme `dragOffset` jako stav
     var previewStart by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    // Získání hustoty obrazovky
+    // Hustota obrazovky
     val density = LocalDensity.current
-    val cellSizePx = with(density) { 80.dp.toPx() } // Převod dp na px
+    val cellSizePx = with(density) { 80.dp.toPx() } // Převod DP na PX
 
-    // Naplnění výběru tvarů, pokud je prázdný
+    // Naplnění výběru tvarů
     if (availableShapes.isEmpty()) {
         availableShapes.addAll(allShapes.shuffled().take(3))
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Skóre
         Text(
             text = "Skóre: ${score.value}",
             modifier = Modifier.padding(16.dp),
             style = MaterialTheme.typography.headlineSmall
         )
 
-        // Herní mřížka
         GameBoard(
             cells = cells,
             score = score,
@@ -70,36 +68,42 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
                     if (placeShape(cells, shape, startX, startY, score)) {
                         draggingShape = null
                         previewStart = null
-                        true // Signalizace úspěšného vložení
+                        true
                     } else {
-                        availableShapes.add(shape) // Vrátíme tvar do nabídky
+                        availableShapes.add(shape) // Vrácení do nabídky
                         draggingShape = null
                         previewStart = null
-                        false // Signalizace neúspěchu
+                        false
                     }
                 } ?: false
             },
             Modifier.weight(1f)
         )
 
-        // Nabídka tvarů
         ShapeSelection(
             shapes = availableShapes,
-            onShapeSelected = { shape ->
+            onShapeSelected = { shape, offset ->
                 draggingShape = shape
-                availableShapes.remove(shape) // Tvar zmizí z nabídky
+                availableShapes.remove(shape)
+                dragOffset = offset // Tady aktualizujeme globální stav dragOffset
             }
         )
 
-        // Přetahování aktivního tvaru
+    }
+
+
+    // Přetahování aktivního tvaru
         draggingShape?.let { shape ->
             DraggableShape(
                 shape = shape,
                 initialOffset = dragOffset,
                 onDrag = { offset ->
-                    dragOffset = offset // Aktualizace pozice během přetahování
-                    val gridX = (offset.x / cellSizePx).toInt()
-                    val gridY = (offset.y / cellSizePx).toInt()
+                    dragOffset = offset
+                    // Přepočet na souřadnice mřížky
+                    val gridX = ((offset.x - (cellSizePx / 2)) / cellSizePx).toInt()
+                    val gridY = ((offset.y - (cellSizePx / 2)) / cellSizePx).toInt()
+
+                    // Aktualizace náhledu
                     previewStart = if (canPlaceShape(cells, shape, gridX, gridY)) {
                         gridX to gridY
                     } else {
@@ -107,20 +111,27 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
                     }
                 },
                 onDrop = { startX, startY ->
-                    if (placeShape(cells, shape, startX, startY, score)) {
+                    val gridX = ((dragOffset.x - (cellSizePx / 2)) / cellSizePx).toInt()
+                    val gridY = ((dragOffset.y - (cellSizePx / 2)) / cellSizePx).toInt()
+
+                    if (placeShape(cells, shape, gridX, gridY, score)) {
                         draggingShape = null
                         previewStart = null
                     } else {
-                        availableShapes.add(shape) // Vrátíme tvar do nabídky
+                        availableShapes.add(shape) // Vrácení do nabídky
                         draggingShape = null
                         previewStart = null
-                        dragOffset = Offset.Zero
                     }
+                    dragOffset = Offset.Zero // Reset offsetu
                 }
+
+
             )
         }
     }
-}
+
+
+
 
 
 
@@ -175,8 +186,8 @@ fun GameBoard(
 
 @Composable
 fun ShapeSelection(
-    shapes: List<Shapes>,
-    onShapeSelected: (Shapes) -> Unit
+    shapes: MutableList<Shapes>,
+    onShapeSelected: (Shapes, Offset) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -185,11 +196,23 @@ fun ShapeSelection(
         horizontalArrangement = Arrangement.SpaceAround
     ) {
         shapes.forEach { shape ->
+            var dragOffset by remember { mutableStateOf(Offset.Zero) } // Lokální offset pro každý tvar
+
             Box(
                 modifier = Modifier
                     .size(80.dp)
-                    .clickable {
-                        onShapeSelected(shape) // Předání tvaru do přetahování
+                    .offset { IntOffset(dragOffset.x.toInt(), dragOffset.y.toInt()) }
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragOffset += dragAmount
+                            },
+                            onDragEnd = {
+                                onShapeSelected(shape, dragOffset) // Předání tvaru a offsetu
+                                dragOffset = Offset.Zero // Reset po přetažení
+                            }
+                        )
                     }
             ) {
                 ShapePreview(shape)
@@ -197,6 +220,8 @@ fun ShapeSelection(
         }
     }
 }
+
+
 
 
 
