@@ -39,8 +39,7 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
     val allShapes = listOf(IShape, OShape, TShape, BigShape, I_Shape, SShape, ZShape, LShape)
     val availableShapes = remember { mutableStateListOf<Shapes>() }
     var draggingShape by remember { mutableStateOf<Shapes?>(null) }
-    var dragOffset by remember { mutableStateOf(Offset.Zero) } // Přidáme `dragOffset` jako stav
-    var previewStart by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
 
     // Hustota obrazovky
     val density = LocalDensity.current
@@ -52,83 +51,59 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
     }
 
     Column(modifier = modifier.fillMaxSize()) {
+        // Zobrazení skóre
         Text(
             text = "Skóre: ${score.value}",
             modifier = Modifier.padding(16.dp),
             style = MaterialTheme.typography.headlineSmall
         )
 
+        // Herní mřížka
         GameBoard(
             cells = cells,
             score = score,
-            previewStart = previewStart,
+            previewStart = null, // Náhled je nyní propočítán přímo v GameBoard
             draggingShape = draggingShape,
-            onDrop = { startX, startY ->
-                draggingShape?.let { shape ->
-                    if (placeShape(cells, shape, startX, startY, score)) {
-                        draggingShape = null
-                        previewStart = null
-                        true
-                    } else {
-                        availableShapes.add(shape) // Vrácení do nabídky
-                        draggingShape = null
-                        previewStart = null
-                        false
-                    }
-                } ?: false
-            },
+            dragOffset = dragOffset,
+            cellSizePx = cellSizePx,
+            onDrop = { _, _ -> /* Nevyužito, zajišťujeme v DraggableShape */ },
             Modifier.weight(1f)
         )
 
+        // Nabídka tvarů
         ShapeSelection(
             shapes = availableShapes,
             onShapeSelected = { shape, offset ->
                 draggingShape = shape
-                availableShapes.remove(shape)
-                dragOffset = offset // Tady aktualizujeme globální stav dragOffset
+                availableShapes.remove(shape) // Tvar zmizí z nabídky
+                dragOffset = offset
             }
         )
 
-    }
-
-
-    // Přetahování aktivního tvaru
+        // Přetahování aktivního tvaru
         draggingShape?.let { shape ->
             DraggableShape(
                 shape = shape,
                 initialOffset = dragOffset,
                 onDrag = { offset ->
                     dragOffset = offset
-                    // Přepočet na souřadnice mřížky
-                    val gridX = ((offset.x - (cellSizePx / 2)) / cellSizePx).toInt()
-                    val gridY = ((offset.y - (cellSizePx / 2)) / cellSizePx).toInt()
-
-                    // Aktualizace náhledu
-                    previewStart = if (canPlaceShape(cells, shape, gridX, gridY)) {
-                        gridX to gridY
-                    } else {
-                        null
-                    }
                 },
-                onDrop = { startX, startY ->
+                onDrop = { _, _ ->
                     val gridX = ((dragOffset.x - (cellSizePx / 2)) / cellSizePx).toInt()
                     val gridY = ((dragOffset.y - (cellSizePx / 2)) / cellSizePx).toInt()
 
                     if (placeShape(cells, shape, gridX, gridY, score)) {
                         draggingShape = null
-                        previewStart = null
                     } else {
                         availableShapes.add(shape) // Vrácení do nabídky
-                        draggingShape = null
-                        previewStart = null
                     }
                     dragOffset = Offset.Zero // Reset offsetu
                 }
-
-
             )
         }
     }
+}
+
 
 
 
@@ -141,11 +116,19 @@ fun GameBoard(
     score: MutableState<Int>,
     previewStart: Pair<Int, Int>?,
     draggingShape: Shapes?,
+    dragOffset: Offset, // Přidáme dragOffset
+    cellSizePx: Float, // Velikost jednoho pole v pixelech
     onDrop: (Int, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val gridSize = cells.size
+    val density = LocalDensity.current
 
+    // Přepočet na souřadnice mřížky
+    val gridX = ((dragOffset.x - (cellSizePx / 2)) / cellSizePx).toInt()
+    val gridY = ((dragOffset.y - (cellSizePx / 2)) / cellSizePx).toInt()
+
+    // Zobrazení mřížky
     LazyVerticalGrid(
         columns = GridCells.Fixed(gridSize),
         modifier = modifier.fillMaxSize()
@@ -153,10 +136,12 @@ fun GameBoard(
         items(gridSize * gridSize) { index ->
             val row = index / gridSize
             val col = index % gridSize
-            val isPreview =
-                draggingShape != null && previewStart != null && draggingShape.pattern.any { (dx, dy) ->
-                    previewStart.first + dx == row && previewStart.second + dy == col
-                }
+
+            // Kontrola, zda je aktuální pole součástí náhledu
+            val isPreview = draggingShape != null && canPlaceShape(cells, draggingShape, gridX, gridY) &&
+                    draggingShape.pattern.any { (dx, dy) ->
+                        gridX + dx == row && gridY + dy == col
+                    }
 
             val color by animateColorAsState(
                 targetValue = when {
@@ -182,6 +167,7 @@ fun GameBoard(
         }
     }
 }
+
 
 
 @Composable
@@ -235,7 +221,7 @@ fun ShapePreview(shape: Shapes) {
             modifier = Modifier
                 .offset(x = (dy * 20).dp, y = (dx * 20).dp) // Oprava zaměněných os
                 .size(size) // Nastavení velikosti každého čtverce
-                .background(Color.Green) // Barva čtverce
+                .background(shape.color) // Barva čtverce
         )
     }
 }
