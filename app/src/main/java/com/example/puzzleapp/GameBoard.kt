@@ -104,10 +104,10 @@ fun DraggableShape(
 
 @Composable
 fun ShapePreview(shape: Shapes) {
-    val size = 20 // Size of each grid cell in the shape
+    val size = 40 // Size of each grid cell in the shape
 
     Box(
-        modifier = Modifier.size(size.dp * 4) // Corrected to use Dp
+        modifier = Modifier.size(size.dp) // Corrected to use Dp
     ) {
         shape.pattern.forEach { (dx, dy) ->
             val offsetX = size * dx;

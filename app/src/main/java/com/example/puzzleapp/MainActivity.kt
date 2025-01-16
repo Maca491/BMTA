@@ -29,13 +29,13 @@ class MainActivity : ComponentActivity() {
                 val availableShapes by gameViewModel.availableShapes.observeAsState(emptyList())
                 var draggingShape by remember { mutableStateOf<Shapes?>(null) }
                 var dragOffset by remember { mutableStateOf(Offset.Zero) }
-                val score = remember { mutableIntStateOf(0) } // Prefer mutableIntStateOf for integers
+                val score = remember { mutableStateOf(0) }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     content = { innerPadding ->
                         Column(modifier = Modifier.padding(innerPadding)) {
-                            // Pass parameters to GameBoard
+                            // Render the game board
                             GameBoard(
                                 cells = cells,
                                 draggingShape = draggingShape,
@@ -49,14 +49,30 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier.weight(1f)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            // Pass available shapes to ShapeSelection
-                            ShapeSelection(
-                                shapes = availableShapes,
-                                onShapeSelected = { shape, offset ->
-                                    draggingShape = shape
-                                    dragOffset = offset // Track the initial drag position
+                            // Render available shapes with draggable functionality
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceAround
+                            ) {
+                                availableShapes.forEach { shape ->
+                                    DraggableShape(
+                                        shape = shape,
+                                        initialOffset = dragOffset,
+                                        onDrag = { offset ->
+                                            dragOffset = offset
+                                            draggingShape = shape
+                                        },
+                                        onDrop = { offset ->
+                                            val gridX = (offset.x / 80.dp.value).toInt()
+                                            val gridY = (offset.y / 80.dp.value).toInt()
+                                            gameViewModel.onShapeDropped(shape, gridX, gridY)
+                                            draggingShape = null
+                                        }
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
                 )
