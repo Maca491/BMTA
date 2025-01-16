@@ -4,6 +4,12 @@ import androidx.compose.ui.graphics.Color
 
 data class Shapes(val pattern: List<Pair<Int, Int>>, val color: Color)
 
+// Define this function in an appropriate file, e.g., ShapesUtil.kt
+fun generateShapes(): List<Shapes> {
+    // Initialize and return a list of Shapes
+    return listOf(IShape, OShape, TShape, BigShape, I_Shape, SShape, ZShape, LShape)
+}
+
 val LShape = Shapes(
     pattern = listOf(0 to 0, 1 to 0, 2 to 0, 2 to 1),
     color = Color.Blue
