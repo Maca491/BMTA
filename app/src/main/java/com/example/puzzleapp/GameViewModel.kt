@@ -1,49 +1,63 @@
 package com.example.puzzleapp
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+const val GRID_SIZE = 10 // Definujte velikost mřížky pro hru
 
 class GameViewModel : ViewModel() {
-    private val _cells = MutableLiveData(
+    private val _cellsFlow = MutableStateFlow(
         Array(GRID_SIZE) { Array(GRID_SIZE) { mutableStateOf(false) } }
     )
-    val cells: LiveData<Array<Array<MutableState<Boolean>>>> = _cells
+    val cellsFlow: StateFlow<Array<Array<MutableState<Boolean>>>> = _cellsFlow.asStateFlow()
 
-    private val _availableShapes = MutableLiveData<List<Shapes>>(generateShapes())
-    val availableShapes: LiveData<List<Shapes>> = _availableShapes
+    private val _availableShapesFlow = MutableStateFlow(generateInitialShapes())
+    val availableShapesFlow: StateFlow<List<Shape>> = _availableShapesFlow.asStateFlow()
 
-    fun onShapeDropped(shape: Shapes, x: Int, y: Int) {
-        val currentCells = _cells.value ?: return
-
-        // Ověření, zda lze tvar umístit na zadané souřadnice
-        if (canPlaceShape(currentCells, shape, x, y)) {
-            // Aktualizace stavu herní plochy
-            shape.pattern.forEach { (dx, dy) ->
-                val newX = x + dx
-                val newY = y + dy
-                if (newX in 0 until GRID_SIZE && newY in 0 until GRID_SIZE) {
-                    currentCells[newX][newY].value = true
-                }
-            }
-            // Aktualizace LiveData
-            _cells.value = currentCells
-        }
-    }
-
-    private fun canPlaceShape(
-        cells: Array<Array<MutableState<Boolean>>>,
-        shape: Shapes,
+    fun canPlaceShape(
+        shape: Shape,
         x: Int,
         y: Int
     ): Boolean {
-        return shape.pattern.all { (dx, dy) ->
+        val cells = _cellsFlow.value
+        val rotatedPattern = shape.pattern.rotate(shape.orientation)
+        return rotatedPattern.all { (dx, dy) ->
             val newX = x + dx
             val newY = y + dy
-            newX in 0 until GRID_SIZE && newY in 0 until GRID_SIZE && !cells[newX][newY].value
+            newX in cells.indices && newY in cells[newX].indices && !cells[newX][newY].value
         }
     }
-}
 
+    fun onShapeDropped(shape: Shape, x: Int, y: Int) {
+        if (canPlaceShape(shape, x, y)) {
+            val cells = _cellsFlow.value
+            val rotatedPattern = shape.pattern.rotate(shape.orientation)
+            rotatedPattern.forEach { (dx, dy) ->
+                val newX = x + dx
+                val newY = y + dy
+                cells[newX][newY].value = true
+            }
+            _cellsFlow.value = cells // Aktualizujte stav
+        }
+    }
+
+    fun replaceShape(shape: Shape) {
+        val shapes = _availableShapesFlow.value.toMutableList()
+        shapes.remove(shape)
+        shapes.add(generateRandomShape())
+        _availableShapesFlow.value = shapes
+    }
+
+    private fun generateRandomShape(): Shape {
+        val allShapes = listOf(IShape, OShape, TShape, BigShape, I_Shape, SShape, ZShape, LShape)
+        return allShapes.random()
+    }
+
+    private fun generateInitialShapes(): List<Shape> {
+        return List(3) { generateRandomShape() }
+    }
+}

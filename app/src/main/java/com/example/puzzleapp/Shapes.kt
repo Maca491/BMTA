@@ -2,50 +2,69 @@ package com.example.puzzleapp
 
 import androidx.compose.ui.graphics.Color
 
-data class Shapes(val pattern: List<Pair<Int, Int>>, val color: Color)
+data class Shape(
+    val pattern: List<Pair<Int, Int>>,
+    val color: Color,
+    val orientation: Orientation = Orientation.UP
+)
 
-// Define this function in an appropriate file, e.g., ShapesUtil.kt
-fun generateShapes(): List<Shapes> {
-    // Initialize and return a list of Shapes
-    return listOf(IShape, OShape, TShape, BigShape, I_Shape, SShape, ZShape, LShape)
+enum class Orientation {
+    UP, RIGHT, DOWN, LEFT
 }
 
-val LShape = Shapes(
+val LShape = Shape(
     pattern = listOf(0 to 0, 1 to 0, 2 to 0, 2 to 1),
-    color = Color.Blue
+    color = Color.Blue,
+    orientation = Orientation.UP
 )
 
-val IShape = Shapes(
+val IShape = Shape(
     pattern = listOf(0 to 0, 0 to 1, 0 to 2, 0 to 3),
-    color = Color.Red
+    color = Color.Red,
+    orientation = Orientation.UP
 )
 
-val I_Shape = Shapes(
+val I_Shape = Shape(
     pattern = listOf(0 to 0, 1 to 0, 2 to 0, 3 to 0),
-    color = Color.Green
+    color = Color.Green,
+    orientation = Orientation.UP
 )
 
-val OShape = Shapes(
+val OShape = Shape(
     pattern = listOf(0 to 0, 0 to 1, 1 to 0, 1 to 1),
-    color = Color.Yellow
+    color = Color.Yellow,
+    orientation = Orientation.UP
 )
 
-val BigShape = Shapes(
+val BigShape = Shape(
     pattern = listOf(0 to 0, 0 to 1, 0 to 2, 1 to 0, 1 to 1, 1 to 2, 2 to 0, 2 to 1, 2 to 2),
-    color = Color.Cyan
+    color = Color.Cyan,
+    orientation = Orientation.UP
 )
 
-val TShape = Shapes(
+val TShape = Shape(
     pattern = listOf(1 to 0, 1 to 1, 0 to 1, 1 to 2),
-    color = Color.Magenta
+    color = Color.Magenta,
+    orientation = Orientation.UP
 )
 
-val ZShape = Shapes(
+val ZShape = Shape(
     pattern = listOf(0 to 0, 0 to 1, 1 to 1, 1 to 2),
-    color = Color.Cyan
+    color = Color.Cyan,
+    orientation = Orientation.UP
 )
 
-val SShape = Shapes(
+val SShape = Shape(
     pattern = listOf(0 to 1, 0 to 2, 1 to 0, 1 to 1),
-    color = Color.Red
+    color = Color.Red,
+    orientation = Orientation.UP
 )
+
+fun List<Pair<Int, Int>>.rotate(orientation: Orientation): List<Pair<Int, Int>> {
+    return when (orientation) {
+        Orientation.UP -> this
+        Orientation.RIGHT -> this.map { (x, y) -> Pair(y, -x) }
+        Orientation.DOWN -> this.map { (x, y) -> Pair(-x, -y) }
+        Orientation.LEFT -> this.map { (x, y) -> Pair(-y, x) }
+    }
+}
