@@ -18,14 +18,13 @@ class GameViewModel : ViewModel() {
     private val _availableShapesFlow = MutableStateFlow(generateInitialShapes())
     val availableShapesFlow: StateFlow<List<Shape>> = _availableShapesFlow.asStateFlow()
 
-    fun canPlaceShape(
+    private fun canPlaceShape(
         shape: Shape,
         x: Int,
         y: Int
     ): Boolean {
         val cells = _cellsFlow.value
-        val rotatedPattern = shape.pattern.rotate(shape.orientation)
-        return rotatedPattern.all { (dx, dy) ->
+        return shape.pattern.all { (dx, dy) ->
             val newX = x + dx
             val newY = y + dy
             newX in cells.indices && newY in cells[newX].indices && !cells[newX][newY].value
@@ -35,13 +34,12 @@ class GameViewModel : ViewModel() {
     fun onShapeDropped(shape: Shape, x: Int, y: Int) {
         if (canPlaceShape(shape, x, y)) {
             val cells = _cellsFlow.value
-            val rotatedPattern = shape.pattern.rotate(shape.orientation)
-            rotatedPattern.forEach { (dx, dy) ->
+            shape.pattern.forEach { (dx, dy) ->
                 val newX = x + dx
                 val newY = y + dy
                 cells[newX][newY].value = true
             }
-            _cellsFlow.value = cells // Aktualizujte stav
+            _cellsFlow.value = cells
         }
     }
 
@@ -58,6 +56,9 @@ class GameViewModel : ViewModel() {
     }
 
     private fun generateInitialShapes(): List<Shape> {
-        return List(3) { generateRandomShape() }
+        val shapes = List(3) { generateRandomShape() }
+        println("Generated initial shapes: $shapes") // Debug
+        return shapes
     }
 }
+

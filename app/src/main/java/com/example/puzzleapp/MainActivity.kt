@@ -6,9 +6,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.IntSize
@@ -27,9 +29,6 @@ class MainActivity : ComponentActivity() {
                 val boardSize = remember { mutableStateOf(IntSize.Zero) }
                 val cells by gameViewModel.cellsFlow.collectAsStateWithLifecycle()
                 val availableShapes by gameViewModel.availableShapesFlow.collectAsStateWithLifecycle()
-                var draggingShape by remember { mutableStateOf<Shape?>(null) }
-                var dragOffset by remember { mutableStateOf(Offset.Zero) }
-                val score = remember { mutableIntStateOf(0) }
                 val density = resources.displayMetrics.density // Získejte hustotu obrazovky
                 val cellSizePx = 80 * density // Vypočítejte velikost buňky v pixelech
 
@@ -50,19 +49,16 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 GameBoard(
                                     cells = cells,
-                                    draggingShape = draggingShape,
-                                    dragOffset = dragOffset,
                                     onDrop = { shape, x, y ->
                                         gameViewModel.onShapeDropped(shape, x, y)
-                                        draggingShape = null
                                     },
-                                    score = score,
-                                    boardOffset = boardOffset,
-                                    boardSize = boardSize, // Poskytujeme velikost
-                                    modifier = Modifier.fillMaxSize()
+                                    boardOffset = boardOffset.value,
+                                    cellSizePx = cellSizePx,
+                                    gridSize = 10
                                 )
                             }
                             Spacer(modifier = Modifier.height(16.dp))
+                            // Zobrazte dostupné tvary s možností přetahování
                             // Zobrazte dostupné tvary s možností přetahování
                             Row(
                                 modifier = Modifier
@@ -70,39 +66,18 @@ class MainActivity : ComponentActivity() {
                                     .padding(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
-                                availableShapes.forEach { shape ->
-                                    DraggableShape(
-                                        shape = shape,
-                                        initialOffset = Offset.Zero,
-                                        cellSizePx = cellSizePx,
-                                        boardOffset = boardOffset.value,
-                                        boardSize = boardSize.value, // Poskytujeme velikost
-                                        onDrag = { offset ->
-                                            dragOffset = offset
-                                            draggingShape = shape
-                                        },
-                                        onDrop = { droppedShape, gridX, gridY, isValid ->
-                                            if (isValid && gameViewModel.canPlaceShape(
-                                                    droppedShape,
-                                                    gridX,
-                                                    gridY
-                                                )
-                                            ) {
-                                                gameViewModel.onShapeDropped(
-                                                    droppedShape,
-                                                    gridX,
-                                                    gridY
-                                                )
-                                                gameViewModel.replaceShape(droppedShape)
-                                            } else {
-                                                // Resetujte stav přetahování při neplatném umístění
-                                                draggingShape = null
-                                                dragOffset = Offset.Zero
-                                            }
-                                        }
-                                    )
+                                if (availableShapes.isEmpty()) {
+                                    println("Shapes are empty") // Debug
+                                } else {
+                                    println("Available shapes in MainActivity: $availableShapes")
+                                    availableShapes.forEach { shape ->
+                                        DraggableShape (
+                                            shape = shape
+                                        )
+                                    }
                                 }
                             }
+
                         }
                     }
                 )
