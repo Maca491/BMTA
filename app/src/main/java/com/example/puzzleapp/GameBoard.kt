@@ -32,6 +32,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 
+
 @Composable
 fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
     val cells = remember { Array(gridSize) { Array(gridSize) { mutableStateOf(false) } } }
@@ -92,7 +93,7 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
         )
 
         // Přetahování aktivního tvaru
-        draggingShape?.let { shape ->
+        /*draggingShape?.let { shape ->
             DraggableShape(
                 shape = shape,
                 initialOffset = dragOffset,
@@ -118,11 +119,9 @@ fun GameWithShapes(gridSize: Int, modifier: Modifier = Modifier) {
                     }
                 }
             )
-        }
+        }*/
     }
 }
-
-
 
 @Composable
 fun GameBoard(
@@ -210,11 +209,11 @@ fun ShapePreview(shape: Shapes) {
             modifier = Modifier
                 .offset(x = (dy * 20).dp, y = (dx * 20).dp) // Oprava zaměněných os
                 .size(size) // Nastavení velikosti každého čtverce
-                .background(Color.Green) // Barva čtverce
+                .background(shape.color) // Barva čtverce
         )
     }
 }
-
+/*
 @Composable
 fun DraggableShape(
     shape: Shapes,
@@ -245,7 +244,7 @@ fun DraggableShape(
         ShapePreview(shape = shape)
     }
 }
-
+*/
 
 
 
