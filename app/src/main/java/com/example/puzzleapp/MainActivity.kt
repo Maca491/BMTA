@@ -28,7 +28,9 @@ class MainActivity : ComponentActivity() {
             PuzzleAppTheme {
                 val cells by gameViewModel.cellsFlow.collectAsStateWithLifecycle()
                 val availableShapes by gameViewModel.availableShapesFlow.collectAsStateWithLifecycle()
-                val gridSize = 6
+                val gridSize = 10
+                val score by gameViewModel.scoreFlow.collectAsStateWithLifecycle()
+
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -41,11 +43,14 @@ class MainActivity : ComponentActivity() {
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(415.dp)
+                                    .size(490.dp)
                                     .align(Alignment.CenterHorizontally)
                             ) {
                                 GameBoard(
-                                    gridSize = gridSize
+                                    gridSize = gridSize,
+                                    score = score,
+                                    cells = cells,
+                                    onShapeDropped = gameViewModel::onShapeDropped
                                 )
                             }
 

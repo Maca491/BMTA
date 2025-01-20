@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class GameViewModel : ViewModel() {
 
+    private val _scoreFlow = MutableStateFlow(0)
+    val scoreFlow: StateFlow<Int> = _scoreFlow.asStateFlow()
+
     private val _cellsFlow = MutableStateFlow(
         Array(GRID_SIZE) { Array(GRID_SIZE) { mutableStateOf(false) } }
     )
@@ -29,21 +32,22 @@ class GameViewModel : ViewModel() {
         }
 
         // Aktualizace stavu buněk
+        var scoreIncrement = 0
         rotatedParts.forEach { part ->
             val targetRow = baseRow + part.dx
             val targetCol = baseCol + part.dy
             if (targetRow in cells.indices && targetCol in cells[targetRow].indices) {
                 cells[targetRow][targetCol].value = true
+                scoreIncrement++
             }
         }
 
-        // Odebrání tvaru ze seznamu dostupných tvarů
-        val updatedShapes = _availableShapesFlow.value.toMutableList()
-        updatedShapes.remove(shape)
-        _availableShapesFlow.value = updatedShapes
+        // Aktualizace skóre
+        _scoreFlow.value += scoreIncrement
 
         return true
     }
+
 
     private fun canPlaceShape(
         cells: Array<Array<MutableState<Boolean>>>,
@@ -137,8 +141,7 @@ class GameViewModel : ViewModel() {
         )
     }
 
-
     companion object {
-        const val GRID_SIZE = 6
+        const val GRID_SIZE = 10
     }
 }
