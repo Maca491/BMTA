@@ -44,10 +44,41 @@ class GameViewModel : ViewModel() {
 
         // Aktualizace skóre
         _scoreFlow.value += scoreIncrement
-
+        checkAndClearFullRowsAndColumns()
         return true
     }
 
+    private fun checkAndClearFullRowsAndColumns() {
+        val cells = _cellsFlow.value
+        var clearedRows = 0
+        var clearedColumns = 0
+
+        // Kontrola a vyčištění plných řádků
+        for (row in cells.indices) {
+            if (cells[row].all { it.value }) {
+                clearedRows++
+                for (col in cells[row].indices) {
+                    cells[row][col].value = false
+                }
+            }
+        }
+
+        // Kontrola a vyčištění plných sloupců
+        for (col in cells[0].indices) {
+            if (cells.all { row -> row[col].value }) {
+                clearedColumns++
+                for (row in cells.indices) {
+                    cells[row][col].value = false
+                }
+            }
+        }
+
+        // Aktualizace skóre
+        val totalCleared = clearedRows + clearedColumns
+        if (totalCleared > 0) {
+            _scoreFlow.value += totalCleared * GRID_SIZE * 100
+        }
+    }
 
     private fun canPlaceShape(
         cells: Array<Array<MutableState<Boolean>>>,
