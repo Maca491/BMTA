@@ -30,7 +30,7 @@
         row: Int,
         col: Int,
         isOccupied: MutableState<Boolean>,
-        onPartDropped: (Int, Int) -> Boolean
+        onShapeDropped: (Shape, Int, Int) -> Boolean
     ) {
         val dragAndDropTarget = remember {
             object : DragAndDropTarget {
@@ -40,16 +40,9 @@
                         val dragData = clipData.getItemAt(0).text?.toString()
                         if (!dragData.isNullOrEmpty()) {
                             val shape = Json.decodeFromString<Shape>(dragData)
-                            val rotatedParts = shape.parts.rotate(shape.orientation)
-                            rotatedParts.forEach { part ->
-                                val targetRow = row + part.dx
-                                val targetCol = col + part.dy
-                                onPartDropped(targetRow, targetCol)
-                            }
-                            true
-                        } else {
-                            false
+                            return onShapeDropped(shape, row, col)
                         }
+                        false
                     } else {
                         false
                     }
@@ -70,4 +63,5 @@
                 )
         )
     }
+
 
