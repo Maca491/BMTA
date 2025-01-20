@@ -24,7 +24,6 @@ fun DraggableShape(
     }
 
     if (clipData != null) {
-        println("Rendering DraggableShape with pattern: ${shape.pattern} and color: ${shape.color}")
         Box(
             modifier = Modifier
                 .dragAndDropSource {
@@ -50,7 +49,6 @@ fun DraggableShape(
 
                 }
         ) {
-            println("Calling ShapePreview for shape: ${shape.pattern}")
             ShapePreview(shape = shape)
         }
     } else {

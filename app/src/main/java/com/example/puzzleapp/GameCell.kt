@@ -12,6 +12,7 @@
     import androidx.compose.ui.graphics.Color
     import androidx.compose.ui.unit.dp
     import androidx.compose.foundation.draganddrop.dragAndDropTarget
+    import androidx.compose.runtime.MutableState
     import androidx.compose.runtime.getValue
     import androidx.compose.runtime.mutableStateOf
     import androidx.compose.runtime.setValue
@@ -27,10 +28,10 @@
     @Composable
     fun GameCell(
         row: Int,
-        col: Int
+        col: Int,
+        isOccupied: MutableState<Boolean>,
+        onPartDropped: (Int, Int) -> Boolean
     ) {
-        var isOccupied by remember { mutableStateOf(false) } // Reaktivní stav
-
         val dragAndDropTarget = remember {
             object : DragAndDropTarget {
                 override fun onDrop(event: DragAndDropEvent): Boolean {
@@ -39,51 +40,19 @@
                         val dragData = clipData.getItemAt(0).text?.toString()
                         if (!dragData.isNullOrEmpty()) {
                             val shape = Json.decodeFromString<Shape>(dragData)
-                            println("Dropped shape at row=$row, col=$col: $shape")
-
-                            val shapeFits = shape.pattern.rotate(shape.orientation).all { (dx, dy) ->
-                                val targetRow = row + dx
-                                val targetCol = col + dy
-                                targetRow in 0 until GameViewModel.GRID_SIZE && targetCol in 0 until GameViewModel.GRID_SIZE && !isOccupied
+                            val rotatedParts = shape.parts.rotate(shape.orientation)
+                            rotatedParts.forEach { part ->
+                                val targetRow = row + part.dx
+                                val targetCol = col + part.dy
+                                onPartDropped(targetRow, targetCol)
                             }
-
-                            if (shapeFits) {
-                                shape.pattern.rotate(shape.orientation).forEach { (dx, dy) ->
-                                    val targetRow = row + dx
-                                    val targetCol = col + dy
-                                    // Logika pro aktualizaci stavu buňky
-                                    println("Marking cell at row=$targetRow, col=$targetCol as occupied")
-                                }
-                                isOccupied = true
-                                true
-                            } else {
-                                println("Shape does not fit at row=$row, col=$col")
-                                false
-                            }
+                            true
                         } else {
-                            println("Drop data is null or empty at row=$row, col=$col")
                             false
                         }
                     } else {
-                        println("ClipData is null or empty at row=$row, col=$col")
                         false
                     }
-                }
-
-                override fun onEntered(event: DragAndDropEvent) {
-                    println("Drag entered cell at row=$row, col=$col")
-                }
-
-                override fun onExited(event: DragAndDropEvent) {
-                    println("Drag exited cell at row=$row, col=$col")
-                }
-
-                override fun onStarted(event: DragAndDropEvent) {
-                    println("Drag started at row=$row, col=$col")
-                }
-
-                override fun onEnded(event: DragAndDropEvent) {
-                    println("Drag ended at row=$row, col=$col")
                 }
             }
         }
@@ -92,7 +61,7 @@
             modifier = Modifier
                 .aspectRatio(1f)
                 .border(1.dp, Color.Black)
-                .background(if (isOccupied) Color.Blue else Color.Gray)
+                .background(if (isOccupied.value) Color.Blue else Color.Gray)
                 .dragAndDropTarget(
                     shouldStartDragAndDrop = { event ->
                         event.mimeTypes().contains(ClipDescription.MIMETYPE_TEXT_PLAIN)
@@ -100,8 +69,5 @@
                     target = dragAndDropTarget
                 )
         )
-
-        fun changeOccupied(): Boolean{
-            return !isOccupied
-        }
     }
+

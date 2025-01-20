@@ -14,18 +14,19 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ShapePreview(shape: Shape) {
     val cellSize = 40 // Size of each cell in dp
-    val rotatedPattern = shape.pattern.rotate(shape.orientation)
+    val rotatedParts = shape.parts.rotate(shape.orientation) // Používáme ShapePart
 
-    val width = (rotatedPattern.maxOfOrNull { it.second } ?: 0) + 1
-    val height = (rotatedPattern.maxOfOrNull { it.first } ?: 0) + 1
+    // Zjištění šířky a výšky tvaru
+    val width = (rotatedParts.maxOfOrNull { it.dy } ?: 0) + 1
+    val height = (rotatedParts.maxOfOrNull { it.dx } ?: 0) + 1
 
     Box(
         modifier = Modifier
             .size(cellSize.dp * width, cellSize.dp * height)
     ) {
-        rotatedPattern.forEach { (dx, dy) ->
-            val offsetX = dy * cellSize
-            val offsetY = dx * cellSize
+        rotatedParts.forEach { part ->
+            val offsetX = part.dy * cellSize
+            val offsetY = part.dx * cellSize
             Box(
                 modifier = Modifier
                     .offset(offsetX.dp, offsetY.dp)
@@ -33,10 +34,11 @@ fun ShapePreview(shape: Shape) {
                     .background(getColorFromName(shape.color))
                     .border(2.dp, Color.Black) // Debug border
             )
-            println("Rendering ShapePreview with pattern: ${shape.pattern} and color: ${shape.color}")
         }
+        println("Rendering ShapePreview with parts: ${shape.parts} and color: ${shape.color}")
     }
 }
+
 
 fun getColorFromName(colorName: String): Color {
     return when (colorName.lowercase()) {

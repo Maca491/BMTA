@@ -19,53 +19,45 @@ class GameViewModel : ViewModel() {
     val availableShapesFlow: StateFlow<List<Shape>> = _availableShapesFlow.asStateFlow()
 
     fun onShapeDropped(shape: Shape, baseRow: Int, baseCol: Int): Boolean {
+        val rotatedParts = shape.parts.rotate(shape.orientation)
         val cells = _cellsFlow.value
-        val rotatedPattern = shape.pattern.rotate(shape.orientation)
 
-        // Check if the shape can be placed
-        if (!canPlaceShape(cells, rotatedPattern, baseRow, baseCol)) {
+        // Validace, zda lze tvar vložit
+        if (!canPlaceShape(cells, rotatedParts, baseRow, baseCol)) {
             println("Cannot place shape at row=$baseRow, col=$baseCol.")
             return false
         }
 
-        // Place the shape on the grid
-        rotatedPattern.forEach { (dx, dy) ->
-            val targetRow = baseRow + dx
-            val targetCol = baseCol + dy
+        // Aktualizace stavu buněk
+        rotatedParts.forEach { part ->
+            val targetRow = baseRow + part.dx
+            val targetCol = baseCol + part.dy
             if (targetRow in cells.indices && targetCol in cells[targetRow].indices) {
                 cells[targetRow][targetCol].value = true
             }
         }
 
-        // Remove the placed shape from available shapes
+        // Odebrání tvaru ze seznamu dostupných tvarů
         val updatedShapes = _availableShapesFlow.value.toMutableList()
-        if (updatedShapes.contains(shape)) {
-            updatedShapes.remove(shape)
-            _availableShapesFlow.value = updatedShapes
-        } else {
-            println("Error: Shape not found in availableShapes.")
-        }
-
-        // Add a new random shape
-        replaceShape(shape)
+        updatedShapes.remove(shape)
+        _availableShapesFlow.value = updatedShapes
 
         return true
     }
 
     private fun canPlaceShape(
         cells: Array<Array<MutableState<Boolean>>>,
-        rotatedPattern: List<Pair<Int, Int>>,
+        parts: List<ShapePart>,
         baseRow: Int,
         baseCol: Int
     ): Boolean {
-        return rotatedPattern.all { (dx, dy) ->
-            val targetRow = baseRow + dx
-            val targetCol = baseCol + dy
-            targetRow in cells.indices &&
-                    targetCol in cells[targetRow].indices &&
-                    !cells[targetRow][targetCol].value
+        return parts.all { part ->
+            val targetRow = baseRow + part.dx
+            val targetCol = baseCol + part.dy
+            targetRow in cells.indices && targetCol in cells[targetRow].indices && !cells[targetRow][targetCol].value
         }
     }
+
 
     private fun replaceShape(shape: Shape) {
         val shapes = _availableShapesFlow.value.toMutableList()
@@ -76,22 +68,77 @@ class GameViewModel : ViewModel() {
 
     private fun generateRandomShape(): Shape {
         val allShapes = listOf(
-            Shape(listOf(0 to 0, 0 to 1, 1 to 0, 1 to 1), "Yellow", Orientation.UP),
-            Shape(listOf(0 to 0, 1 to 0, 2 to 0, 3 to 0), "Green", Orientation.UP),
-            Shape(listOf(0 to 0, 0 to 1, 0 to 2, 1 to 1), "Purple", Orientation.UP)
+            Shape(
+                parts = listOf(
+                    ShapePart(0, 0, listOf(Direction.RIGHT, Direction.DOWN)),
+                    ShapePart(0, 1, listOf(Direction.LEFT)),
+                    ShapePart(1, 0, listOf(Direction.UP)),
+                    ShapePart(1, 1, listOf(Direction.UP))
+                ),
+                color = "Yellow",
+                orientation = Orientation.UP
+            ),
+            Shape(
+                parts = listOf(
+                    ShapePart(0, 0, listOf(Direction.DOWN)),
+                    ShapePart(1, 0, listOf(Direction.UP, Direction.DOWN)),
+                    ShapePart(2, 0, listOf(Direction.UP, Direction.DOWN)),
+                    ShapePart(3, 0, listOf(Direction.UP))
+                ),
+                color = "Green",
+                orientation = Orientation.UP
+            ),
+            Shape(
+                parts = listOf(
+                    ShapePart(0, 0, listOf(Direction.RIGHT)),
+                    ShapePart(0, 1, listOf(Direction.LEFT, Direction.RIGHT)),
+                    ShapePart(0, 2, listOf(Direction.LEFT)),
+                    ShapePart(1, 1, listOf(Direction.UP))
+                ),
+                color = "Purple",
+                orientation = Orientation.UP
+            )
         )
         return allShapes.random()
     }
 
     private fun generateInitialShapes(): List<Shape> {
         return listOf(
-            Shape(listOf(0 to 0, 0 to 1, 1 to 0, 1 to 1), "Yellow", Orientation.UP),
-            Shape(listOf(0 to 0, 1 to 0, 2 to 0, 3 to 0), "Green", Orientation.UP),
-            Shape(listOf(0 to 0, 0 to 1, 0 to 2, 1 to 1), "Purple", Orientation.UP)
+            Shape(
+                parts = listOf(
+                    ShapePart(0, 0, listOf(Direction.RIGHT, Direction.DOWN)),
+                    ShapePart(0, 1, listOf(Direction.LEFT)),
+                    ShapePart(1, 0, listOf(Direction.UP)),
+                    ShapePart(1, 1, listOf(Direction.UP))
+                ),
+                color = "Yellow",
+                orientation = Orientation.UP
+            ),
+            Shape(
+                parts = listOf(
+                    ShapePart(0, 0, listOf(Direction.DOWN)),
+                    ShapePart(1, 0, listOf(Direction.UP, Direction.DOWN)),
+                    ShapePart(2, 0, listOf(Direction.UP, Direction.DOWN)),
+                    ShapePart(3, 0, listOf(Direction.UP))
+                ),
+                color = "Green",
+                orientation = Orientation.UP
+            ),
+            Shape(
+                parts = listOf(
+                    ShapePart(0, 0, listOf(Direction.RIGHT)),
+                    ShapePart(0, 1, listOf(Direction.LEFT, Direction.RIGHT)),
+                    ShapePart(0, 2, listOf(Direction.LEFT)),
+                    ShapePart(1, 1, listOf(Direction.UP))
+                ),
+                color = "Purple",
+                orientation = Orientation.UP
+            )
         )
     }
 
+
     companion object {
-        const val GRID_SIZE = 10
+        const val GRID_SIZE = 6
     }
 }

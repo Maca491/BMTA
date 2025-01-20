@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
             PuzzleAppTheme {
                 val cells by gameViewModel.cellsFlow.collectAsStateWithLifecycle()
                 val availableShapes by gameViewModel.availableShapesFlow.collectAsStateWithLifecycle()
-                val gridSize = 10
+                val gridSize = 6
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),

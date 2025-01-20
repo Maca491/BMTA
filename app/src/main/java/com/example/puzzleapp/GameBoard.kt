@@ -15,6 +15,20 @@ fun GameBoard(gridSize: Int) {
     val cells = remember {
         Array(gridSize) { Array(gridSize) { mutableStateOf(false) } }
     }
+
+    fun handlePartDropped(row: Int, col: Int): Boolean {
+        return if (row in 0 until gridSize && col in 0 until gridSize) {
+            if (!cells[row][col].value) {
+                cells[row][col].value = true
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(gridSize),
         modifier = Modifier.fillMaxSize()
@@ -22,8 +36,12 @@ fun GameBoard(gridSize: Int) {
         items(gridSize * gridSize) { index ->
             val row = index / gridSize
             val col = index % gridSize
-
-            GameCell(row = row, col = col)
+            GameCell(
+                row = row,
+                col = col,
+                isOccupied = cells[row][col],
+                onPartDropped = ::handlePartDropped
+            )
         }
     }
 }
