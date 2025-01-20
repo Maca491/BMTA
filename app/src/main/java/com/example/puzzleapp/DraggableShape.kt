@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropTransferData
+import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -28,11 +29,25 @@ fun DraggableShape(
             modifier = Modifier
                 .dragAndDropSource {
                     detectTapGestures(onPress = {
-                        println("Starting drag for shape: $shape")
+                        val serializedShape = Json.encodeToString(shape)
+                        val clipData = ClipData.newPlainText("shapeData", serializedShape)
+
+                        // Logování obsahu ClipData
+                        if (clipData.itemCount > 0) {
+                            val itemText = clipData.getItemAt(0).text?.toString()
+                            println("ClipData created with item text: $itemText")
+                        } else {
+                            println("ClipData is empty!")
+                        }
+
+                        println("Starting drag for shape: $serializedShape")
+
+                        // Zahájení přenosu dat
                         startTransfer(
                             DragAndDropTransferData(clipData)
                         )
                     })
+
                 }
         ) {
             println("Calling ShapePreview for shape: ${shape.pattern}")

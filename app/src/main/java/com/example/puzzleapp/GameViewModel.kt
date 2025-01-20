@@ -7,9 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-const val GRID_SIZE = 10 // Definujte velikost mřížky pro hru
 
 class GameViewModel : ViewModel() {
+
     private val _cellsFlow = MutableStateFlow(
         Array(GRID_SIZE) { Array(GRID_SIZE) { mutableStateOf(false) } }
     )
@@ -18,32 +18,56 @@ class GameViewModel : ViewModel() {
     private val _availableShapesFlow = MutableStateFlow(generateInitialShapes())
     val availableShapesFlow: StateFlow<List<Shape>> = _availableShapesFlow.asStateFlow()
 
-    private fun canPlaceShape(
-        shape: Shape,
-        x: Int,
-        y: Int
-    ): Boolean {
+    fun onShapeDropped(shape: Shape, baseRow: Int, baseCol: Int): Boolean {
         val cells = _cellsFlow.value
-        return shape.pattern.all { (dx, dy) ->
-            val newX = x + dx
-            val newY = y + dy
-            newX in cells.indices && newY in cells[newX].indices && !cells[newX][newY].value
-        }
-    }
+        val rotatedPattern = shape.pattern.rotate(shape.orientation)
 
-    fun onShapeDropped(shape: Shape, x: Int, y: Int) {
-        if (canPlaceShape(shape, x, y)) {
-            val cells = _cellsFlow.value
-            shape.pattern.forEach { (dx, dy) ->
-                val newX = x + dx
-                val newY = y + dy
-                cells[newX][newY].value = true
+        // Check if the shape can be placed
+        if (!canPlaceShape(cells, rotatedPattern, baseRow, baseCol)) {
+            println("Cannot place shape at row=$baseRow, col=$baseCol.")
+            return false
+        }
+
+        // Place the shape on the grid
+        rotatedPattern.forEach { (dx, dy) ->
+            val targetRow = baseRow + dx
+            val targetCol = baseCol + dy
+            if (targetRow in cells.indices && targetCol in cells[targetRow].indices) {
+                cells[targetRow][targetCol].value = true
             }
-            _cellsFlow.value = cells
+        }
+
+        // Remove the placed shape from available shapes
+        val updatedShapes = _availableShapesFlow.value.toMutableList()
+        if (updatedShapes.contains(shape)) {
+            updatedShapes.remove(shape)
+            _availableShapesFlow.value = updatedShapes
+        } else {
+            println("Error: Shape not found in availableShapes.")
+        }
+
+        // Add a new random shape
+        replaceShape(shape)
+
+        return true
+    }
+
+    private fun canPlaceShape(
+        cells: Array<Array<MutableState<Boolean>>>,
+        rotatedPattern: List<Pair<Int, Int>>,
+        baseRow: Int,
+        baseCol: Int
+    ): Boolean {
+        return rotatedPattern.all { (dx, dy) ->
+            val targetRow = baseRow + dx
+            val targetCol = baseCol + dy
+            targetRow in cells.indices &&
+                    targetCol in cells[targetRow].indices &&
+                    !cells[targetRow][targetCol].value
         }
     }
 
-    fun replaceShape(shape: Shape) {
+    private fun replaceShape(shape: Shape) {
         val shapes = _availableShapesFlow.value.toMutableList()
         shapes.remove(shape)
         shapes.add(generateRandomShape())
@@ -51,14 +75,23 @@ class GameViewModel : ViewModel() {
     }
 
     private fun generateRandomShape(): Shape {
-        val allShapes = listOf(IShape, OShape, TShape, BigShape, I_Shape, SShape, ZShape, LShape)
+        val allShapes = listOf(
+            Shape(listOf(0 to 0, 0 to 1, 1 to 0, 1 to 1), "Yellow", Orientation.UP),
+            Shape(listOf(0 to 0, 1 to 0, 2 to 0, 3 to 0), "Green", Orientation.UP),
+            Shape(listOf(0 to 0, 0 to 1, 0 to 2, 1 to 1), "Purple", Orientation.UP)
+        )
         return allShapes.random()
     }
 
     private fun generateInitialShapes(): List<Shape> {
-        val shapes = List(3) { generateRandomShape() }
-        println("Generated initial shapes: $shapes") // Debug
-        return shapes
+        return listOf(
+            Shape(listOf(0 to 0, 0 to 1, 1 to 0, 1 to 1), "Yellow", Orientation.UP),
+            Shape(listOf(0 to 0, 1 to 0, 2 to 0, 3 to 0), "Green", Orientation.UP),
+            Shape(listOf(0 to 0, 0 to 1, 0 to 2, 1 to 1), "Purple", Orientation.UP)
+        )
+    }
+
+    companion object {
+        const val GRID_SIZE = 10
     }
 }
-

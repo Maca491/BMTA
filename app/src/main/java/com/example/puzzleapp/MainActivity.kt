@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -25,59 +26,41 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             PuzzleAppTheme {
-                val boardOffset = remember { mutableStateOf(Offset.Zero) }
-                val boardSize = remember { mutableStateOf(IntSize.Zero) }
                 val cells by gameViewModel.cellsFlow.collectAsStateWithLifecycle()
                 val availableShapes by gameViewModel.availableShapesFlow.collectAsStateWithLifecycle()
-                val density = resources.displayMetrics.density // Získejte hustotu obrazovky
-                val cellSizePx = 80 * density // Vypočítejte velikost buňky v pixelech
+                val gridSize = 10
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     content = { innerPadding ->
-                        Column(modifier = Modifier.padding(innerPadding)) {
+                        Column(
+                            modifier = Modifier
+                                .padding(innerPadding)
+                                .fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .onGloballyPositioned { layoutCoordinates ->
-                                        boardOffset.value = layoutCoordinates.positionInRoot()
-                                        boardSize.value = IntSize(
-                                            layoutCoordinates.size.width,
-                                            layoutCoordinates.size.height
-                                        )
-                                    }
+                                    .size(415.dp)
+                                    .align(Alignment.CenterHorizontally)
                             ) {
                                 GameBoard(
-                                    cells = cells,
-                                    onDrop = { shape, x, y ->
-                                        gameViewModel.onShapeDropped(shape, x, y)
-                                    },
-                                    boardOffset = boardOffset.value,
-                                    cellSizePx = cellSizePx,
-                                    gridSize = 10
+                                    gridSize = gridSize
                                 )
                             }
+
                             Spacer(modifier = Modifier.height(16.dp))
-                            // Zobrazte dostupné tvary s možností přetahování
-                            // Zobrazte dostupné tvary s možností přetahování
+
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
-                                if (availableShapes.isEmpty()) {
-                                    println("Shapes are empty") // Debug
-                                } else {
-                                    println("Available shapes in MainActivity: $availableShapes")
-                                    availableShapes.forEach { shape ->
-                                        DraggableShape (
-                                            shape = shape
-                                        )
-                                    }
+                                availableShapes.forEach { shape ->
+                                    DraggableShape(shape = shape)
                                 }
                             }
-
                         }
                     }
                 )
